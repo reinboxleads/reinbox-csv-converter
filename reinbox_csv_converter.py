@@ -12,8 +12,10 @@ st.set_page_config(
 
 # Header and instructions
 st.title("📬 REInbox Leads Converter")
-st.markdown("""
-**Format your DealMachine CSV for cold email outreach—quickly and easily.**
+st.markdown(
+    "This tool formats DealMachine CSV files for cold email campaigns using Instantly."
+)
+
 
 - Removes “Resident, Likely Renting” contacts  
 - Duplicates rows for each valid email address  
