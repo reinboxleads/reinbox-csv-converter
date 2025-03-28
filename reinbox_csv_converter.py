@@ -2,7 +2,11 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-st.set_page_config(page_title="REInbox Leads CSV Converter", layout="centered")
+st.set_page_config(
+    page_title="REInbox Leads CSV Converter",
+    page_icon="📬",
+    layout="centered"
+)
 
 st.markdown("""
     <h1>📬 REInbox Leads CSV Converter</h1>
