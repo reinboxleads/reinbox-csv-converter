@@ -1,26 +1,27 @@
 import streamlit as st
 import pandas as pd
 from io import StringIO
-import base64
 
-st.set_page_config(page_title="REInbox Leads CSV Converter", page_icon="📬")
+# App branding and layout
+st.set_page_config(page_title="REInbox Leads CSV Converter", page_icon="📬", layout="centered")
 
-# Branding and Instructions
 st.markdown("""
-# 📬 REInbox Leads CSV Converter
+    <h1 style='text-align: center;'>📬 REInbox Leads CSV Converter</h1>
+    <p style='text-align: center;'>This tool will clean and format your DealMachine export so it's ready for <strong>cold email campaigns in Instantly.</strong></p>
+    <hr>
+""", unsafe_allow_html=True)
 
-This tool will clean and format your DealMachine export so it's ready for **cold email campaigns in Instantly**.
-
----
-
+st.markdown("""
 ### ✅ What This Tool Does:
+
 - Splits each contact into **one row per email address**
 - Duplicates all other contact info (owner name, property address, etc.)
-- **Removes** anyone marked `"Resident, Likely Renting"`
+- **Removes** anyone marked <code>"Resident, Likely Renting"</code>
 
 ---
 
-### 🧭 What to Do:
+### 🎯 What to Do:
+
 1. Download your DealMachine contacts as a **CSV**
 2. Paste the file directly into this converter
 3. The cleaned version will download automatically
@@ -28,49 +29,56 @@ This tool will clean and format your DealMachine export so it's ready for **cold
 
 ---
 
-⚠️ **Make sure your file includes the headers:**
-`email_address_1`, `email_address_2`, `email_address_3`
-
----
-""")
+⚠️ **Make sure your file includes the headers:** <code>email_address_1</code>, <code>email_address_2</code>, <code>email_address_3</code>
+""", unsafe_allow_html=True)
 
 # File upload
 uploaded_file = st.file_uploader("Upload your DealMachine CSV file", type=["csv"])
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+    try:
+        df = pd.read_csv(uploaded_file)
 
-    # Check for required email columns
-    required_cols = ['email_address_1', 'email_address_2', 'email_address_3']
-    missing_cols = [col for col in required_cols if col not in df.columns]
+        # Normalize column headers (remove spaces, make lowercase)
+        df.columns = df.columns.str.strip().str.lower()
 
-    if missing_cols:
-        st.warning(f"⚠️ Missing columns: {', '.join(missing_cols)}. Please check your file headers.")
-    else:
-        # Remove 'Resident, Likely Renting'
-        df = df[df['owner_first_name'].str.strip().str.lower() != 'resident, likely renting']
-
-        # Create one row per email address
-        expanded_rows = []
-        for _, row in df.iterrows():
-            for email_col in required_cols:
-                email = row[email_col]
-                if pd.notnull(email) and str(email).strip() != '':
-                    new_row = row.copy()
-                    new_row['email_address'] = email
-                    expanded_rows.append(new_row)
-
-        if expanded_rows:
-            cleaned_df = pd.DataFrame(expanded_rows)
-            cleaned_df = cleaned_df.drop(columns=required_cols)
-
-            # Generate CSV download
-            csv = cleaned_df.to_csv(index=False)
-            b64 = base64.b64encode(csv.encode()).decode()
-            href = f'<a href="data:file/csv;base64,{b64}" download="REInbox_Cleaned_Leads.csv">📥 Download Cleaned CSV File</a>'
-            st.markdown(href, unsafe_allow_html=True)
-            st.success("✅ Your cleaned file is ready!")
+        # Check for required email columns
+        required_cols = ['email_address_1', 'email_address_2', 'email_address_3']
+        if not all(col in df.columns for col in required_cols):
+            st.error("⚠️ One or more email columns (email_address_1, _2, _3) are missing. Please check your headers.")
         else:
-            st.warning("No valid emails found to process.")
+            # Remove contacts with "Resident, Likely Renting"
+            if 'owner_first_name' in df.columns:
+                df = df[df['owner_first_name'].str.strip().str.lower() != 'resident, likely renting']
+
+            # Create rows for each available email
+            rows = []
+            for _, row in df.iterrows():
+                for col in required_cols:
+                    email = row[col]
+                    if pd.notna(email) and email.strip() != "":
+                        new_row = row.copy()
+                        new_row['email_address'] = email.strip()
+                        rows.append(new_row)
+
+            if rows:
+                result_df = pd.DataFrame(rows)
+                # Drop original email_1, 2, 3 columns
+                result_df = result_df.drop(columns=required_cols)
+
+                # Create CSV for download
+                csv = result_df.to_csv(index=False)
+                st.success("✅ File cleaned and ready to download!")
+                st.download_button(
+                    label="📥 Download Clean CSV",
+                    data=csv,
+                    file_name="cleaned_dealmachine_leads.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.warning("⚠️ No valid email addresses found to convert.")
+
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
 else:
     st.info("☝️ Upload a .csv file above to get started.")
